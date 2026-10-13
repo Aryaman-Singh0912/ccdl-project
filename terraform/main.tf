@@ -13,7 +13,7 @@ provider "azurerm" {
 }
 
 locals {
-  open_ports = [22, 3000, 8081, 8082]
+  admin_ports = [22, 3000]
 }
 
 resource "azurerm_resource_group" "rg" {
@@ -49,7 +49,7 @@ resource "azurerm_network_security_group" "nsg" {
   resource_group_name = azurerm_resource_group.rg.name
 
   dynamic "security_rule" {
-    for_each = local.open_ports
+    for_each = local.admin_ports
     content {
       name                       = "allow-${security_rule.value}"
       priority                   = 100 + security_rule.key
@@ -61,6 +61,19 @@ resource "azurerm_network_security_group" "nsg" {
       source_address_prefix      = var.allowed_cidr
       destination_address_prefix = "*"
     }
+  }
+
+  # The public website (nginx serving the React app and proxying /api).
+  security_rule {
+    name                       = "allow-web"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "8080"
+    source_address_prefix      = "*"
+    destination_address_prefix = "*"
   }
 }
 

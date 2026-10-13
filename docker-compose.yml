@@ -25,16 +25,29 @@ services:
       - 1.1.1.1
     environment:
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash}
-    ports: ["8083:8083"]
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.8-flash}
+    ports: ["127.0.0.1:8083:8083"]
+
+  auth-service:
+    build: ./auth-service
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/tasksdb
+      DB_USER: postgres
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-please-123456}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports: ["127.0.0.1:8084:8084"]
 
   note-service:
     build: ./note-service
     environment:
       MONGO_URI: mongodb://mongo:27017/notesdb
       AI_SERVICE_URL: http://ai-service:8083
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-please-123456}
     depends_on: [mongo, ai-service]
-    ports: ["8081:8081"]
+    ports: ["127.0.0.1:8081:8081"]
 
   task-service:
     build: ./task-service
@@ -42,16 +55,22 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/tasksdb
       DB_USER: postgres
       DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me-please-123456}
     depends_on:
       postgres:
         condition: service_healthy
-    ports: ["8082:8082"]
+    ports: ["127.0.0.1:8082:8082"]
+
+  web:
+    build: ./frontend
+    depends_on: [auth-service, note-service, task-service]
+    ports: ["8080:80"]
 
   prometheus:
     image: prom/prometheus:v2.54.1
     volumes:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports: ["9090:9090"]
+    ports: ["127.0.0.1:9090:9090"]
 
   loki:
     image: grafana/loki:3.0.0
@@ -59,7 +78,7 @@ services:
     volumes:
       - ./observability/loki-config.yml:/etc/loki/loki-config.yml:ro
       - lokidata:/loki
-    ports: ["3100:3100"]
+    ports: ["127.0.0.1:3100:3100"]
 
   promtail:
     image: grafana/promtail:3.0.0

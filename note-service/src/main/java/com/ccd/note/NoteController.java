@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
@@ -22,32 +23,47 @@ public class NoteController {
 
     public NoteController(NoteRepository repo, @Value("${ai.service.url}") String aiUrl) {
         this.repo = repo;
-        this.ai = RestClient.builder().baseUrl(aiUrl).build();
+                org.springframework.http.client.SimpleClientHttpRequestFactory factory =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(90000);
+        this.ai = RestClient.builder().baseUrl(aiUrl).requestFactory(factory).build();
+    }
+
+    /** Finds a note only if it belongs to this user; otherwise behaves as if it does not exist. */
+    private Note owned(String id, String userId) {
+        return repo.findById(id)
+                .filter(n -> userId.equals(n.getUserId()))
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Note not found"));
     }
 
     @GetMapping
-    public List<Note> all(@RequestParam(required = false) String tag) {
-        return tag == null ? repo.findAll() : repo.findByTagsContaining(tag);
+    public List<Note> all(@RequestAttribute("userId") String userId,
+                          @RequestParam(required = false) String tag) {
+        return tag == null ? repo.findByUserId(userId) : repo.findByUserIdAndTagsContaining(userId, tag);
     }
 
     @GetMapping("/{id}")
-    public Note one(@PathVariable String id) {
-        return repo.findById(id).orElseThrow(
-                () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Note not found"));
+    public Note one(@RequestAttribute("userId") String userId, @PathVariable String id) {
+        return owned(id, userId);
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public Note create(@RequestBody Note n) {
+    public Note create(@RequestAttribute("userId") String userId, @RequestBody Note n) {
         n.setId(null);
+        n.setUserId(userId);
+        n.setSummary(null);
+        n.setCreatedAt(Instant.now());
         Note saved = repo.save(n);
-        log.info("Created note {}", saved.getId());
+        log.info("User {} created note {}", userId, saved.getId());
         return saved;
     }
 
     @PutMapping("/{id}")
-    public Note update(@PathVariable String id, @RequestBody Note in) {
-        Note n = one(id);
+    public Note update(@RequestAttribute("userId") String userId, @PathVariable String id,
+                       @RequestBody Note in) {
+        Note n = owned(id, userId);
         n.setTitle(in.getTitle());
         n.setContent(in.getContent());
         n.setTags(in.getTags());
@@ -56,14 +72,15 @@ public class NoteController {
 
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable String id) {
+    public void delete(@RequestAttribute("userId") String userId, @PathVariable String id) {
+        owned(id, userId);
         repo.deleteById(id);
-        log.info("Deleted note {}", id);
+        log.info("User {} deleted note {}", userId, id);
     }
 
     @PostMapping("/{id}/summarize")
-    public Note summarize(@PathVariable String id) {
-        Note n = one(id);
+    public Note summarize(@RequestAttribute("userId") String userId, @PathVariable String id) {
+        Note n = owned(id, userId);
         String text = n.getContent() == null ? "" : n.getContent();
         try {
             Map<?, ?> res = ai.post().uri("/summarize")

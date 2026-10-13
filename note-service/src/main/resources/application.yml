@@ -9,6 +9,8 @@ spring:
 ai:
   service:
     url: ${AI_SERVICE_URL:http://localhost:8083}
+jwt:
+  secret: ${JWT_SECRET:dev-only-secret-change-me-please-123456}
 management:
   endpoints:
     web:

@@ -21,9 +21,16 @@ public class SummarizerService {
 
     private final String apiKey;
     private final String model;
-    private final RestClient http = RestClient.builder()
-            .requestFactory(new SimpleClientHttpRequestFactory())
+        private final RestClient http = RestClient.builder()
+            .requestFactory(timeoutFactory())
             .build();
+
+    private static SimpleClientHttpRequestFactory timeoutFactory() {
+        SimpleClientHttpRequestFactory f = new SimpleClientHttpRequestFactory();
+        f.setConnectTimeout(5000);   // give up connecting after 5 seconds
+        f.setReadTimeout(20000);     // give up waiting for an answer after 20 seconds
+        return f;
+    }
 
     public SummarizerService(@Value("${gemini.api-key:}") String apiKey,
                              @Value("${gemini.model:gemini-3.8-flash}") String model) {

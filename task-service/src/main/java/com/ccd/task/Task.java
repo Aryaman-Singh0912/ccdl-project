@@ -12,6 +12,8 @@ public class Task {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "user_id")
+    private String userId;
     private String title;
     @Column(length = 1000)
     private String description;
@@ -23,6 +25,8 @@ public class Task {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public String getUserId() { return userId; }
+    public void setUserId(String userId) { this.userId = userId; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
     public String getDescription() { return description; }
