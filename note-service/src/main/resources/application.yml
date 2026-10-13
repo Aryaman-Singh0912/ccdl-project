@@ -1,0 +1,19 @@
+server:
+  port: 8081
+spring:
+  application:
+    name: note-service
+  data:
+    mongodb:
+      uri: ${MONGO_URI:mongodb://localhost:27017/notesdb}
+ai:
+  service:
+    url: ${AI_SERVICE_URL:http://localhost:8083}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    tags:
+      application: note-service

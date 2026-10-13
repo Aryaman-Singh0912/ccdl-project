@@ -1,0 +1,16 @@
+server:
+  port: 8083
+spring:
+  application:
+    name: ai-service
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.0-flash}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  metrics:
+    tags:
+      application: ai-service
